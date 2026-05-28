@@ -1,0 +1,47 @@
+{
+  "summary": {
+    "runDate": "2026-05-28",
+    "slaRows": 4259,
+    "cskhRows": 245,
+    "scope": "Hen giao/phat lai qua han",
+    "totalScopeRows": 135,
+    "matchedToSla": 135,
+    "unmatchedToSla": 0,
+    "pendingByCskh": "135/135 (100.00%)",
+    "pendingBySlaOnMatched": "135/135 (100.00%)",
+    "pendingBySlaOnScope": "135/135 (100.00%)",
+    "byAppointmentDate": [
+      {
+        "date": "26/05/0206",
+        "matched": "1/1",
+        "pendingSla": "1/1",
+        "rate": "100.00%"
+      },
+      {
+        "date": "24/05/2026",
+        "matched": "1/1",
+        "pendingSla": "1/1",
+        "rate": "100.00%"
+      },
+      {
+        "date": "25/05/2026",
+        "matched": "57/57",
+        "pendingSla": "57/57",
+        "rate": "100.00%"
+      },
+      {
+        "date": "26/05/2026",
+        "matched": "54/54",
+        "pendingSla": "54/54",
+        "rate": "100.00%"
+      },
+      {
+        "date": "27/05/2026",
+        "matched": "22/22",
+        "pendingSla": "22/22",
+        "rate": "100.00%"
+      }
+    ]
+  },
+  "unmatchedRows": []
+}
