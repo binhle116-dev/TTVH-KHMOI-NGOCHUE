@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -17,10 +17,10 @@ import seedRows from './data/seedRows.json'
 import laborShortage from './data/laborShortage.json'
 import './App.css'
 
-const SUCCESS = 'ÄÃ£ phÃ¡t thÃ nh cÃ´ng'
-const FAIL = 'ChÆ°a phÃ¡t Ä‘Æ°á»£c'
-const NO_INFO = 'ChÆ°a cÃ³ TT phÃ¡t'
-const RETURNED = 'PhÃ¡t hoÃ n thÃ nh cÃ´ng'
+const SUCCESS = 'Đã phát thành công'
+const FAIL = 'Chưa phát được'
+const NO_INFO = 'Chưa có TT phát'
+const RETURNED = 'Phát hoàn thành công'
 const CSKH_CSV_URL =
   'https://docs.google.com/spreadsheets/d/11bry91Q4H0JJMiKB2rjBgJSA85bJ5l0MsnYEQ15cLms/gviz/tq?tqx=out:csv&gid=0'
 const COLORS = {
@@ -45,9 +45,9 @@ function loadPersistedRows() {
 
 function loadPersistedFileName() {
   try {
-    return localStorage.getItem(STORAGE_FILENAME_KEY) || 'C020016132 - PHáº M THá»Š NGá»ŒC HUáº¾_FN.xlsx'
+    return localStorage.getItem(STORAGE_FILENAME_KEY) || 'C020016132 - PHẠM THỊ NGỌC HUẾ_FN.xlsx'
   } catch {
-    return 'C020016132 - PHáº M THá»Š NGá»ŒC HUáº¾_FN.xlsx'
+    return 'C020016132 - PHẠM THỊ NGỌC HUẾ_FN.xlsx'
   }
 }
 
@@ -86,9 +86,9 @@ function shortDate(key) {
 
 function normalizeProvince(value) {
   return String(value || '#N/A')
-    .replace(/^Tá»‰nh\s+/i, '')
+    .replace(/^Tỉnh\s+/i, '')
     .replace(/^TP\.\s+/i, '')
-    .replace('Thá»«a ThiÃªn Huáº¿', 'Huáº¿')
+    .replace('Thừa Thiên Huế', 'Huế')
     .trim()
 }
 
@@ -104,8 +104,8 @@ function normalizeText(value) {
   return String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/Ä‘/g, 'd')
-    .replace(/Ä/g, 'D')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim()
@@ -165,7 +165,7 @@ function parseWorkbookRows(workbook) {
         }))
         .filter((row) => row.post)
     : []
-  const headerIndex = matrix.findIndex((row) => String(row[0]).trim() === 'Sá»‘ hiá»‡u BG')
+  const headerIndex = matrix.findIndex((row) => String(row[0]).trim() === 'Số hiệu BG')
   if (headerIndex < 0) return []
 
   return matrix
@@ -209,7 +209,7 @@ function parseCustomerSupportCsv(csvText) {
     .slice(1)
     .map((row) => {
       const code = String(row[2] || '').trim()
-      if (!code || code === 'MÃ£ BG há»— trá»£') return null
+      if (!code || code === 'Mã BG hỗ trợ') return null
       const request = String(row[4] || '').trim()
       const finalResult = String(row[20] || row[19] || row[18] || row[17] || '').trim()
       const cause = String(row[21] || '').trim()
@@ -222,8 +222,8 @@ function parseCustomerSupportCsv(csvText) {
         requester: String(row[3] || '').trim(),
         request,
         requestedDeliveryDate: String(row[5] || '').trim(),
-        staff: String(row[6] || 'ChÆ°a rÃµ').trim() || 'ChÆ°a rÃµ',
-        unit: String(row[7] || 'ChÆ°a rÃµ').trim() || 'ChÆ°a rÃµ',
+        staff: String(row[6] || 'Chưa rõ').trim() || 'Chưa rõ',
+        unit: String(row[7] || 'Chưa rõ').trim() || 'Chưa rõ',
         content: String(row[8] || '').trim(),
         finalResult,
         cause,
@@ -237,14 +237,14 @@ function buildCustomerSupportDashboard(supportRows, shipmentRows) {
   const total = supportRows.length
   const uniqueCodes = new Set(supportRows.map((row) => row.code)).size
   const success = supportRows.filter((row) => row.finalResult.includes(SUCCESS)).length
-  const returned = supportRows.filter((row) => /hoÃ n|chuyá»ƒn hoÃ n|chuyen hoan/i.test(row.finalResult + row.content)).length
+  const returned = supportRows.filter((row) => /hoàn|chuyển hoàn|chuyen hoan/i.test(row.finalResult + row.content)).length
   const multiAttempt = supportRows.filter((row) => row.attempts >= 2).length
   const shipmentMap = new Map(shipmentRows.map((row) => [normalizeCode(row.code), row]))
   const matched = supportRows.filter((row) => shipmentMap.has(normalizeCode(row.code)))
   const matchedSuccess = matched.filter((row) => shipmentMap.get(normalizeCode(row.code))?.finalStatus === SUCCESS).length
 
   const byRequestMap = supportRows.reduce((acc, row) => {
-    const key = row.request || 'YÃªu cáº§u khÃ¡c'
+    const key = row.request || 'Yêu cầu khác'
     acc.set(key, (acc.get(key) || 0) + 1)
     return acc
   }, new Map())
@@ -258,7 +258,7 @@ function buildCustomerSupportDashboard(supportRows, shipmentRows) {
   }, new Map())
   const byUnitMap = supportRows.reduce((acc, row) => {
     const shipment = shipmentMap.get(normalizeCode(row.code))
-    const province = shipment ? normalizeProvince(shipment.province) : 'ChÆ°a match tá»‰nh phÃ¡t'
+    const province = shipment ? normalizeProvince(shipment.province) : 'Chưa match tỉnh phát'
     const current = acc.get(province) || { name: province, total: 0, multiAttempt: 0 }
     current.total += 1
     if (row.attempts >= 2) current.multiAttempt += 1
@@ -268,25 +268,25 @@ function buildCustomerSupportDashboard(supportRows, shipmentRows) {
   const supportNoInfoRows = supportRows
     .filter((row) => classifySupportOutcome(row, shipmentMap.get(normalizeCode(row.code))) === 'noInfo')
     .map((row) => ({
-      'NgÃ y há»— trá»£': row.supportDate,
-      'MÃ£ BG há»— trá»£': row.code,
-      'NgÆ°á»i yÃªu cáº§u': row.requester,
-      'YÃªu cáº§u cá»§a KH': row.request,
-      'NgÃ y CH/phÃ¡t láº¡i': row.requestedDeliveryDate,
-      'NhÃ¢n viÃªn BÄ xá»­ lÃ½': row.staff,
-      'ÄÆ¡n vá»‹ xá»­ lÃ½ trÃªn GG Sheet': row.unit,
-      'Ná»™i dung gá»­i BCP há»— trá»£': row.content,
-      'Káº¿t quáº£ phÃ¡t cuá»‘i cÃ¹ng há»— trá»£ KH': row.finalResult,
-      'NguyÃªn nhÃ¢n': row.cause || 'ChÆ°a phÃ¢n loáº¡i',
-      'Sá»‘ láº§n há»— trá»£': row.attempts,
+      'Ngày hỗ trợ': row.supportDate,
+      'Mã BG hỗ trợ': row.code,
+      'Người yêu cầu': row.requester,
+      'Yêu cầu của KH': row.request,
+      'Ngày CH/phát lại': row.requestedDeliveryDate,
+      'Nhân viên BĐ xử lý': row.staff,
+      'Đơn vị xử lý trên GG Sheet': row.unit,
+      'Nội dung gửi BCP hỗ trợ': row.content,
+      'Kết quả phát cuối cùng hỗ trợ KH': row.finalResult,
+      'Nguyên nhân': row.cause || 'Chưa phân loại',
+      'Số lần hỗ trợ': row.attempts,
     }))
   const causeMap = supportRows.reduce((acc, row) => {
     const shipment = shipmentMap.get(normalizeCode(row.code))
     const notDelivered = shipment ? shipment.finalStatus !== SUCCESS : !row.finalResult.includes(SUCCESS)
     const key =
       notDelivered && shipment && matchesLaborShortage(shipment)
-        ? 'Thiáº¿u bÆ°u tÃ¡/lao Ä‘á»™ng phÃ¡t'
-        : row.cause || 'ChÆ°a phÃ¢n loáº¡i'
+        ? 'Thiếu bưu tá/lao động phát'
+        : row.cause || 'Chưa phân loại'
     acc.set(key, (acc.get(key) || 0) + 1)
     return acc
   }, new Map())
@@ -314,7 +314,7 @@ function buildCustomerSupportDashboard(supportRows, shipmentRows) {
       .slice(0, 5),
     supportNoInfoRows,
     daily: [...supportRows.reduce((acc, row) => {
-      const key = row.supportDate || 'ChÆ°a rÃµ ngÃ y'
+      const key = row.supportDate || 'Chưa rõ ngày'
       const current = acc.get(key) || {
         date: key,
         total: 0,
@@ -393,12 +393,12 @@ function buildDashboard(rows) {
     ...summarizeRows(rows.filter((row) => row.date === key)),
   }))
 
-  const directionOrder = ['Ná»™i tá»‰nh', 'NAM', 'Báº®C']
+  const directionOrder = ['Nội tỉnh', 'NAM', 'BẮC']
   const directions = directionOrder.map((direction) => {
     const group = rows.filter((row) => row.direction === direction)
     const summary = summarizeRows(group)
     return {
-      name: direction === 'NAM' ? 'HÆ°á»›ng Nam' : direction === 'Báº®C' ? 'HÆ°á»›ng Báº¯c' : direction,
+      name: direction === 'NAM' ? 'Hướng Nam' : direction === 'BẮC' ? 'Hướng Bắc' : direction,
       rawName: direction,
       total: summary.total,
       ptcRate: summary.ptcRate,
@@ -414,7 +414,7 @@ function buildDashboard(rows) {
         if (!group.length) return null
         return {
           date: shortDate(date),
-          direction: direction === 'NAM' ? 'HÆ°á»›ng Nam' : direction === 'Báº®C' ? 'HÆ°á»›ng Báº¯c' : direction,
+          direction: direction === 'NAM' ? 'Hướng Nam' : direction === 'BẮC' ? 'Hướng Bắc' : direction,
           ...summarizeRows(group),
         }
       })
@@ -422,10 +422,10 @@ function buildDashboard(rows) {
   )
 
   const status = [
-    { name: 'ThÃ nh cÃ´ng', value: completed, color: COLORS.success },
-    { name: 'Lá»—i phÃ¡t', value: fail, color: COLORS.fail },
-    { name: 'ChÆ°a cÃ³ TT', value: noInfo, color: COLORS.noInfo },
-    { name: 'KhÃ¡c', value: Math.max(total - ptc - fail - noInfo, 0), color: '#cbd5e1' },
+    { name: 'Thành công', value: completed, color: COLORS.success },
+    { name: 'Lỗi phát', value: fail, color: COLORS.fail },
+    { name: 'Chưa có TT', value: noInfo, color: COLORS.noInfo },
+    { name: 'Khác', value: Math.max(total - ptc - fail - noInfo, 0), color: '#cbd5e1' },
   ].filter((item) => item.value > 0)
 
   const provinceMap = rows.reduce((acc, row) => {
@@ -463,30 +463,30 @@ function buildDashboard(rows) {
   })
   const appointmentRows = rows.filter((row) => {
     const text = `${row.reasonText || ''} ${row.firstStatus || ''} ${row.finalStatus || ''}`.toLowerCase()
-    return /háº¹n|hen|phÃ¡t láº¡i|phat lai|chá» phÃ¡t|cho phat/.test(text)
+    return /hẹn|hen|phát lại|phat lai|chờ phát|cho phat/.test(text)
   })
   const missedAppointmentRows = appointmentRows.filter((row) => row.finalStatus !== SUCCESS && row.finalStatus !== RETURNED)
   const noInfoRows = rows.filter((row) => row.finalStatus === NO_INFO)
   const noInfoCauseMap = noInfoRows.reduce((acc, row) => {
-    const cause = matchesLaborShortage(row) ? 'BCVH thiáº¿u lao Ä‘á»™ng phÃ¡t' : 'LÃ½ do khÃ¡c'
+    const cause = matchesLaborShortage(row) ? 'BCVH thiếu lao động phát' : 'Lý do khác'
     acc.set(cause, (acc.get(cause) || 0) + 1)
     return acc
   }, new Map())
   const riskMetrics = [
     {
-      name: 'Tá»“n BC phÃ¡t quÃ¡ J+3',
+      name: 'Tồn BC phát quá J+3',
       value: deliveryPostOverJ3NoInfo.length,
       rate: total ? (deliveryPostOverJ3NoInfo.length / total) * 100 : 0,
       fill: '#ef476f',
     },
     {
-      name: 'Háº¹n giao chÆ°a Ä‘i Ä‘Ãºng ngÃ y',
+      name: 'Hẹn giao chưa đi đúng ngày',
       value: missedAppointmentRows.length,
       rate: appointmentRows.length ? (missedAppointmentRows.length / appointmentRows.length) * 100 : 0,
       fill: '#f59e0b',
     },
     {
-      name: 'ChÆ°a cÃ³ thÃ´ng tin phÃ¡t',
+      name: 'Chưa có thông tin phát',
       value: noInfoRows.length,
       rate: total ? (noInfoRows.length / total) * 100 : 0,
       fill: COLORS.noInfo,
@@ -497,15 +497,15 @@ function buildDashboard(rows) {
     .sort((a, b) => b.value - a.value)
     .slice(0, 5)
   const noInfoExportRows = noInfoRows.map((row) => ({
-    'Sá»‘ hiá»‡u BG': row.code,
-    'NgÃ y cháº¥p nháº­n': row.date,
-    'Tá»‰nh': row.province,
-    'MÃ£ BCVH': row.postCode || '',
-    'BCVH/BÆ°u cá»¥c phÃ¡t': row.deliveryPost || '',
-    'HÆ°á»›ng chuyá»ƒn': row.direction,
-    'Tráº¡ng thÃ¡i phÃ¡t cuá»‘i cÃ¹ng': row.finalStatus,
-    'Vá»‹ trÃ­ cuá»‘i cÃ¹ng': row.lastPosition || '',
-    'NguyÃªn nhÃ¢n': matchesLaborShortage(row) ? 'BCVH thiáº¿u lao Ä‘á»™ng phÃ¡t' : 'LÃ½ do khÃ¡c',
+    'Số hiệu BG': row.code,
+    'Ngày chấp nhận': row.date,
+    'Tỉnh': row.province,
+    'Mã BCVH': row.postCode || '',
+    'BCVH/Bưu cục phát': row.deliveryPost || '',
+    'Hướng chuyển': row.direction,
+    'Trạng thái phát cuối cùng': row.finalStatus,
+    'Vị trí cuối cùng': row.lastPosition || '',
+    'Nguyên nhân': matchesLaborShortage(row) ? 'BCVH thiếu lao động phát' : 'Lý do khác',
   }))
 
   return {
@@ -555,41 +555,41 @@ function InsightPanel({ data, supportData }) {
   const supportPeakDay = [...supportData.daily].sort((a, b) => b.total - a.total)[0]
 
   return (
-    <section className="insight-panel" aria-label="Nháº­n xÃ©t váº­n hÃ nh" data-export-module="nhan_xet_van_hanh">
-      <span>TRUNG TÃ‚M Váº¬N HÃ€NH - NHáº¬N XÃ‰T Bá»” SUNG</span>
-      <h3>ÄÃ¡nh giÃ¡ tá»· lá»‡ Äáº¡t SLA & PhÃ¡t thÃ nh cÃ´ng theo chuá»—i thá»i gian</h3>
+    <section className="insight-panel" aria-label="Nhận xét vận hành" data-export-module="nhan_xet_van_hanh">
+      <span>TRUNG TÂM VẬN HÀNH - NHẬN XÉT BỔ SUNG</span>
+      <h3>Đánh giá tỷ lệ Đạt SLA & Phát thành công theo chuỗi thời gian</h3>
       <p>
-        Theo dá»¯ liá»‡u Dashboard, tá»•ng sáº£n lÆ°á»£ng toÃ n trÃ¬nh ghi nháº­n <strong>{formatNumber(data.total)}</strong> bÆ°u gá»­i,
-        gá»“m: PhÃ¡t thÃ nh cÃ´ng thuáº§n (PTC) <strong>{formatNumber(data.ptc)}</strong> bÆ°u gá»­i, Ä‘áº¡t{' '}
-        <strong>{formatPercent(data.ptcRate)}</strong>; phÃ¡t hoÃ n thÃ nh cÃ´ng <strong>{formatNumber(data.phtc)}</strong>{' '}
-        bÆ°u gá»­i; lá»—i phÃ¡t <strong>{formatNumber(data.fail)}</strong> bÆ°u gá»­i; chÆ°a cÃ³ thÃ´ng tin phÃ¡t{' '}
-        <strong>{formatNumber(data.noInfo)}</strong> bÆ°u gá»­i. Tá»· lá»‡ Äáº¡t SLA J+3 hiá»‡n Ä‘áº¡t{' '}
+        Theo dữ liệu Dashboard, tổng sản lượng toàn trình ghi nhận <strong>{formatNumber(data.total)}</strong> bưu gửi,
+        gồm: Phát thành công thuần (PTC) <strong>{formatNumber(data.ptc)}</strong> bưu gửi, đạt{' '}
+        <strong>{formatPercent(data.ptcRate)}</strong>; phát hoàn thành công <strong>{formatNumber(data.phtc)}</strong>{' '}
+        bưu gửi; lỗi phát <strong>{formatNumber(data.fail)}</strong> bưu gửi; chưa có thông tin phát{' '}
+        <strong>{formatNumber(data.noInfo)}</strong> bưu gửi. Tỷ lệ Đạt SLA J+3 hiện đạt{' '}
         <strong>{formatPercent(data.slaRate)}</strong>.
       </p>
       <p>
-        ÄÃ¡nh giÃ¡ theo chuá»—i thá»i gian: cÃ¡c ngÃ y <strong>{firstDay} Ä‘áº¿n {sixthDay}</strong> cÆ¡ báº£n Ä‘Ã£ cÃ³ dá»¯ liá»‡u phÃ¡t/lá»—i
-        phÃ¡t Ä‘á»ƒ Ä‘Ã¡nh giÃ¡ SLA, tá»· lá»‡ Äáº¡t SLA dao Ä‘á»™ng khoáº£ng <strong>{earlySlaRange}</strong>. Tá»« ngÃ y{' '}
-        <strong>{seventhDay}</strong> Ä‘áº¿n <strong>{lastDay}</strong>, tá»· lá»‡ Äáº¡t SLA bÃ¬nh quÃ¢n Ä‘áº¡t{' '}
-        <strong>{formatPercent(laterSlaAvg)}</strong>; ngÃ y cáº§n theo dÃµi sÃ¡t nháº¥t lÃ  <strong>{data.weakestDay?.date}</strong>{' '}
-        do SLA tháº¥p nháº¥t trong chuá»—i. HÆ°á»›ng chuyá»ƒn chá»§ Ä‘áº¡o lÃ  <strong>{data.topDirection?.name}</strong>, chiáº¿m{' '}
-        <strong>{formatPercent(directionShare)}</strong> tá»•ng sáº£n lÆ°á»£ng; hÆ°á»›ng cÃ³ SLA tá»‘t nháº¥t lÃ {' '}
-        <strong>{data.bestSlaDirection?.name}</strong> vá»›i <strong>{formatPercent(data.bestSlaDirection?.sla)}</strong>.
+        Đánh giá theo chuỗi thời gian: các ngày <strong>{firstDay} đến {sixthDay}</strong> cơ bản đã có dữ liệu phát/lỗi
+        phát để đánh giá SLA, tỷ lệ Đạt SLA dao động khoảng <strong>{earlySlaRange}</strong>. Từ ngày{' '}
+        <strong>{seventhDay}</strong> đến <strong>{lastDay}</strong>, tỷ lệ Đạt SLA bình quân đạt{' '}
+        <strong>{formatPercent(laterSlaAvg)}</strong>; ngày cần theo dõi sát nhất là <strong>{data.weakestDay?.date}</strong>{' '}
+        do SLA thấp nhất trong chuỗi. Hướng chuyển chủ đạo là <strong>{data.topDirection?.name}</strong>, chiếm{' '}
+        <strong>{formatPercent(directionShare)}</strong> tổng sản lượng; hướng có SLA tốt nhất là{' '}
+        <strong>{data.bestSlaDirection?.name}</strong> với <strong>{formatPercent(data.bestSlaDirection?.sla)}</strong>.
       </p>
       <p>
-        Vá» tá»· lá»‡ phÃ¡t thÃ nh cÃ´ng (PTC): cÃ¡c ngÃ y <strong>{highPtcDays}</strong> Ä‘ang ghi nháº­n tá»· lá»‡ PTC cao nháº¥t trong
-        chuá»—i. CÃ¡c ngÃ y {lowPtcDays ? <strong>{lowPtcDays}</strong> : <strong>khÃ´ng cÃ³ ngÃ y tháº¥p hÆ¡n bÃ¬nh quÃ¢n</strong>}{' '}
-        cÃ³ tá»· lá»‡ PTC tháº¥p hÆ¡n má»©c bÃ¬nh quÃ¢n, chá»§ yáº¿u cáº§n tiáº¿p tá»¥c theo dÃµi nhÃ³m khÃ¡ch háº¹n, khÃ´ng liÃªn há»‡ Ä‘Æ°á»£c, hÃ ng phÃ¡t
-        láº¡i vÃ  cÃ¡c bÆ°u gá»­i chÆ°a cÃ³ thÃ´ng tin phÃ¡t.
+        Về tỷ lệ phát thành công (PTC): các ngày <strong>{highPtcDays}</strong> đang ghi nhận tỷ lệ PTC cao nhất trong
+        chuỗi. Các ngày {lowPtcDays ? <strong>{lowPtcDays}</strong> : <strong>không có ngày thấp hơn bình quân</strong>}{' '}
+        có tỷ lệ PTC thấp hơn mức bình quân, chủ yếu cần tiếp tục theo dõi nhóm khách hẹn, không liên hệ được, hàng phát
+        lại và các bưu gửi chưa có thông tin phát.
       </p>
       <p>
-        Vá» cÃ´ng tÃ¡c CSKH theo ngÃ y: tá»•ng sá»‘ Ä‘Æ¡n cáº§n CSKH theo Google Sheet lÃ {' '}
-        <strong>{formatNumber(supportData.total)}</strong> yÃªu cáº§u trÃªn <strong>{formatNumber(supportData.uniqueCodes)}</strong>{' '}
-        mÃ£ bÆ°u gá»­i. Trong Ä‘Ã³, há»— trá»£ thÃ nh cÃ´ng <strong>{formatNumber(supportData.success)}</strong> Ä‘Æ¡n, Ä‘áº¡t{' '}
-        <strong>{formatPercent(supportData.successRate)}</strong>; chÆ°a phÃ¡t thÃ nh cÃ´ng{' '}
-        <strong>{formatNumber(supportData.total - supportData.success)}</strong> Ä‘Æ¡n, chiáº¿m{' '}
-        <strong>{formatPercent(100 - supportData.successRate)}</strong>; cáº§n há»— trá»£ láº§n 2 trá»Ÿ lÃªn{' '}
-        <strong>{formatNumber(supportData.multiAttempt)}</strong> Ä‘Æ¡n. NgÃ y phÃ¡t sinh nhiá»u yÃªu cáº§u CSKH nháº¥t lÃ {' '}
-        <strong>{supportPeakDay?.date}</strong> vá»›i <strong>{formatNumber(supportPeakDay?.total)}</strong> yÃªu cáº§u.
+        Về công tác CSKH theo ngày: tổng số đơn cần CSKH theo Google Sheet là{' '}
+        <strong>{formatNumber(supportData.total)}</strong> yêu cầu trên <strong>{formatNumber(supportData.uniqueCodes)}</strong>{' '}
+        mã bưu gửi. Trong đó, hỗ trợ thành công <strong>{formatNumber(supportData.success)}</strong> đơn, đạt{' '}
+        <strong>{formatPercent(supportData.successRate)}</strong>; chưa phát thành công{' '}
+        <strong>{formatNumber(supportData.total - supportData.success)}</strong> đơn, chiếm{' '}
+        <strong>{formatPercent(100 - supportData.successRate)}</strong>; cần hỗ trợ lần 2 trở lên{' '}
+        <strong>{formatNumber(supportData.multiAttempt)}</strong> đơn. Ngày phát sinh nhiều yêu cầu CSKH nhất là{' '}
+        <strong>{supportPeakDay?.date}</strong> với <strong>{formatNumber(supportPeakDay?.total)}</strong> yêu cầu.
       </p>
     </section>
   )
@@ -633,13 +633,13 @@ function OverviewTable({ data }) {
     <table className="dashboard-table overview-table">
       <thead>
         <tr>
-          <th>NGÃ€Y NHáº¬N</th>
-          <th>Sáº¢N LÆ¯á»¢NG</th>
+          <th>NGÀY NHẬN</th>
+          <th>SẢN LƯỢNG</th>
           <th>PTC</th>
           <th>PHTC</th>
-          <th>Tá»ˆ Lá»† PTC</th>
-          <th>CHÆ¯A CÃ“ THÃ”NG TIN PHÃT</th>
-          <th>Äáº T SLA</th>
+          <th>TỈ LỆ PTC</th>
+          <th>CHƯA CÓ THÔNG TIN PHÁT</th>
+          <th>ĐẠT SLA</th>
         </tr>
       </thead>
       <tbody>
@@ -659,7 +659,7 @@ function OverviewTable({ data }) {
       </tbody>
       <tfoot>
         <tr>
-          <td>Tá»”NG Cá»˜NG</td>
+          <td>TỔNG CỘNG</td>
           <td>{formatNumber(data.total)}</td>
           <td>{formatNumber(data.ptc)}</td>
           <td>{formatNumber(data.phtc)}</td>
@@ -677,14 +677,14 @@ function QualityTable({ rows }) {
     <table className="dashboard-table quality-table">
       <thead>
         <tr>
-          <th>NGÃ€Y</th>
-          <th>HÆ¯á»šNG CHUYá»‚N</th>
-          <th>Sáº¢N LÆ¯á»¢NG</th>
+          <th>NGÀY</th>
+          <th>HƯỚNG CHUYỂN</th>
+          <th>SẢN LƯỢNG</th>
           <th>PTC</th>
           <th>PHTC</th>
-          <th>Tá»ˆ Lá»† PTC</th>
-          <th>CHÆ¯A CÃ“ THÃ”NG TIN PHÃT</th>
-          <th>Äáº T SLA</th>
+          <th>TỈ LỆ PTC</th>
+          <th>CHƯA CÓ THÔNG TIN PHÁT</th>
+          <th>ĐẠT SLA</th>
         </tr>
       </thead>
       <tbody>
@@ -730,8 +730,8 @@ function RiskIndicatorsPanel({ metrics, causes, exportRows }) {
     <article className="panel risk-panel" data-export-module="danh_gia_ton_phat_chua_ttp">
       <div className="risk-head">
         <div>
-          <h2>ÄÃNH GIÃ Tá»’N PHÃT & CHÆ¯A CÃ“ THÃ”NG TIN PHÃT</h2>
-          <span>Theo tráº¡ng thÃ¡i hiá»‡n táº¡i vÃ  má»‘c phÃ¡t láº§n Ä‘áº§u</span>
+          <h2>ĐÁNH GIÁ TỒN PHÁT & CHƯA CÓ THÔNG TIN PHÁT</h2>
+          <span>Theo trạng thái hiện tại và mốc phát lần đầu</span>
         </div>
         <button className="export-excel" type="button" onClick={exportNoInfoRows} disabled={!exportRows.length}>
           <FileSpreadsheet size={14} /> Bưu gửi chưa phát được
@@ -744,7 +744,7 @@ function RiskIndicatorsPanel({ metrics, causes, exportRows }) {
               <CartesianGrid horizontal={false} stroke="#edf0f6" />
               <XAxis type="number" hide />
               <YAxis dataKey="name" type="category" width={106} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#667085', fontWeight: 900 }} />
-              <Tooltip formatter={(value, name, item) => [`${formatNumber(value)} Ä‘Æ¡n (${formatPercent(item.payload.rate)})`, name]} cursor={{ fill: 'transparent' }} />
+              <Tooltip formatter={(value, name, item) => [`${formatNumber(value)} đơn (${formatPercent(item.payload.rate)})`, name]} cursor={{ fill: 'transparent' }} />
               <Bar isAnimationActive={false} dataKey="value" radius={[0, 7, 7, 0]} barSize={28} label={{ position: 'right', formatter: (value) => formatNumber(value), fill: '#111827', fontWeight: 900 }}>
                 {metrics.map((entry) => (
                   <Cell key={entry.name} fill={entry.fill} />
@@ -754,7 +754,7 @@ function RiskIndicatorsPanel({ metrics, causes, exportRows }) {
           </ResponsiveContainer>
         </div>
         <div className="cause-list">
-          <h3>NguyÃªn nhÃ¢n nhÃ³m chÆ°a cÃ³ TTP</h3>
+          <h3>Nguyên nhân nhóm chưa có TTP</h3>
           {causes.length ? (
             causes.map((item) => (
               <div className="cause-row" key={item.name}>
@@ -763,14 +763,14 @@ function RiskIndicatorsPanel({ metrics, causes, exportRows }) {
               </div>
             ))
           ) : (
-            <p>KhÃ´ng phÃ¡t sinh bÆ°u gá»­i chÆ°a cÃ³ thÃ´ng tin phÃ¡t.</p>
+            <p>Không phát sinh bưu gửi chưa có thông tin phát.</p>
           )}
         </div>
       </div>      <p className="risk-note">
-        "Tá»“n BC phÃ¡t quÃ¡ J+3" chá»‰ tÃ­nh khi bÆ°u gá»­i Ä‘Ã£ Ä‘áº¿n BCVH dá»± kiáº¿n (Ä‘á»‘i chiáº¿u Nguon!Z vá»›i Chi tiáº¿t!C/D), tráº¡ng thÃ¡i
-        Nguon!Y lÃ  chÆ°a cÃ³ thÃ´ng tin phÃ¡t, chÆ°a cÃ³ ngÃ y phÃ¡t láº§n Ä‘áº§u vÃ  sá»‘ ngÃ y tá»« cháº¥p nháº­n Ä‘áº¿n hiá»‡n táº¡i vÆ°á»£t quÃ¡ J+3.
-        NguyÃªn nhÃ¢n "BCVH thiáº¿u lao Ä‘á»™ng phÃ¡t" Ä‘Æ°á»£c xÃ¡c Ä‘á»‹nh báº±ng danh sÃ¡ch thiáº¿u bÆ°u tÃ¡ (cá»™t B/D) so vá»›i Chi tiáº¿t!C/D;
-        pháº§n cÃ²n láº¡i ghi nháº­n lÃ  lÃ½ do khÃ¡c.
+        "Tồn BC phát quá J+3" chỉ tính khi bưu gửi đã đến BCVH dự kiến (đối chiếu Nguon!Z với Chi tiết!C/D), trạng thái
+        Nguon!Y là chưa có thông tin phát, chưa có ngày phát lần đầu và số ngày từ chấp nhận đến hiện tại vượt quá J+3.
+        Nguyên nhân "BCVH thiếu lao động phát" được xác định bằng danh sách thiếu bưu tá (cột B/D) so với Chi tiết!C/D;
+        phần còn lại ghi nhận là lý do khác.
       </p>
     </article>
   )
@@ -798,69 +798,69 @@ function CustomerSupportPanel({ data, loading, error }) {
   }
 
   return (
-    <section className="panel cskh-panel" aria-label="ÄÃ¡nh giÃ¡ cÃ´ng tÃ¡c CSKH" data-export-module="danh_gia_cskh">
+    <section className="panel cskh-panel" aria-label="Đánh giá công tác CSKH" data-export-module="danh_gia_cskh">
       <div className="cskh-head">
         <div>
-          <h2>ÄÃNH GIÃ CÃ”NG TÃC CSKH / Há»– TRá»¢ KHL</h2>
-          <span>{loading ? 'Äang táº£i dá»¯ liá»‡u Google Sheet...' : error ? 'KhÃ´ng táº£i Ä‘Æ°á»£c Google Sheet' : 'Nguá»“n: Tá»•ng há»£p thÃ´ng tin há»— trá»£ KHL'}</span>
+          <h2>ĐÁNH GIÁ CÔNG TÁC CSKH / HỖ TRỢ KHL</h2>
+          <span>{loading ? 'Đang tải dữ liệu Google Sheet...' : error ? 'Không tải được Google Sheet' : 'Nguồn: Tổng hợp thông tin hỗ trợ KHL'}</span>
         </div>
         <div className="cskh-head-actions">
           {error ? <em>{error}</em> : null}
           <button className="export-excel" type="button" onClick={exportSupportNoInfoRows} disabled={!data.supportNoInfoRows.length}>
-            <FileSpreadsheet size={14} /> Xuáº¥t bÆ°u gá»­i chÆ°a cÃ³ thÃ´ng tin phÃ¡t
+            <FileSpreadsheet size={14} /> Xuất bưu gửi chưa có thông tin phát
           </button>
         </div>
       </div>
 
       <div className="cskh-kpis">
         <div>
-          <span>Tá»•ng yÃªu cáº§u</span>
+          <span>Tổng yêu cầu</span>
           <strong>{formatNumber(data.total)}</strong>
-          <small>{formatNumber(data.uniqueCodes)} mÃ£ BG duy nháº¥t</small>
+          <small>{formatNumber(data.uniqueCodes)} mã BG duy nhất</small>
         </div>
         <div>
-          <span>PhÃ¡t TC sau há»— trá»£</span>
+          <span>Phát TC sau hỗ trợ</span>
           <strong>{formatPercent(data.successRate)}</strong>
-          <small>{formatNumber(data.success)} yÃªu cáº§u</small>
+          <small>{formatNumber(data.success)} yêu cầu</small>
         </div>
         <div>
-          <span>Há»— trá»£ láº§n 2+</span>
+          <span>Hỗ trợ lần 2+</span>
           <strong>{formatPercent(data.multiAttemptRate)}</strong>
-          <small>{formatNumber(data.multiAttempt)} yÃªu cáº§u</small>
+          <small>{formatNumber(data.multiAttempt)} yêu cầu</small>
         </div>
         <div>
-          <span>Chuyá»ƒn hoÃ n sau há»— trá»£</span>
+          <span>Chuyển hoàn sau hỗ trợ</span>
           <strong>{formatPercent(data.returnedRate)}</strong>
-          <small>{formatNumber(data.returned)} yÃªu cáº§u</small>
+          <small>{formatNumber(data.returned)} yêu cầu</small>
         </div>
       </div>
 
       <div className="cskh-daily">
-        <h3>ÄÃ¡nh giÃ¡ CSKH theo ngÃ y</h3>
+        <h3>Đánh giá CSKH theo ngày</h3>
         <div className="cskh-daily-grid">
           {data.daily.map((day) => (
             <article className="cskh-day-card" key={day.date}>
               <header>
-                <strong>NgÃ y {day.date}</strong>
-                <span>{formatNumber(day.total)} Ä‘Æ¡n</span>
+                <strong>Ngày {day.date}</strong>
+                <span>{formatNumber(day.total)} đơn</span>
               </header>
               <div className="cskh-day-row">
-                <span>ChÆ°a phÃ¡t Ä‘Æ°á»£c (Äang xá»­ lÃ½, chuyá»ƒn tin...)</span>
+                <span>Chưa phát được (Đang xử lý, chuyển tin...)</span>
                 <b>{formatNumber(day.fail)}</b>
                 <em>{formatPercent(day.failRate)}</em>
               </div>
               <div className="cskh-day-row success">
-                <span>ÄÃ£ phÃ¡t thÃ nh cÃ´ng</span>
+                <span>Đã phát thành công</span>
                 <b>{formatNumber(day.success)}</b>
                 <em>{formatPercent(day.successRate)}</em>
               </div>
               <div className="cskh-day-row warning">
-                <span>ChÆ°a cÃ³ thÃ´ng tin phÃ¡t (Visibility Blackout)</span>
+                <span>Chưa có thông tin phát (Visibility Blackout)</span>
                 <b>{formatNumber(day.noInfo)}</b>
                 <em>{formatPercent(day.noInfoRate)}</em>
               </div>
               <div className="cskh-day-row returned">
-                <span>BÆ°u gá»­i Ä‘Ã£ chuyá»ƒn hoÃ n sau 3 ca phÃ¡t</span>
+                <span>Bưu gửi đã chuyển hoàn sau 3 ca phát</span>
                 <b>{formatNumber(day.returned)}</b>
                 <em>{formatPercent(day.returnedRate)}</em>
               </div>
@@ -871,42 +871,42 @@ function CustomerSupportPanel({ data, loading, error }) {
 
       <div className="cskh-grid">
         <div className="cskh-chart">
-          <h3>CÆ¡ cáº¥u yÃªu cáº§u KH</h3>
+          <h3>Cơ cấu yêu cầu KH</h3>
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={data.byRequest} layout="vertical" margin={{ top: 6, right: 36, left: 122, bottom: 2 }}>
               <CartesianGrid horizontal={false} stroke="#edf0f6" />
               <XAxis type="number" hide />
               <YAxis dataKey="name" type="category" width={126} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#667085', fontWeight: 900 }} />
-              <Tooltip formatter={(value) => `${formatNumber(value)} yÃªu cáº§u`} cursor={{ fill: 'transparent' }} />
+              <Tooltip formatter={(value) => `${formatNumber(value)} yêu cầu`} cursor={{ fill: 'transparent' }} />
               <Bar isAnimationActive={false} dataKey="value" fill={COLORS.purple} radius={[0, 7, 7, 0]} barSize={24} label={{ position: 'right', fill: COLORS.purple, fontWeight: 900 }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="cskh-list">
-          <h3>Top nhÃ¢n viÃªn CSKH</h3>
+          <h3>Top nhân viên CSKH</h3>
           {data.byStaff.map((item) => (
             <div className="cskh-row" key={item.name}>
               <span>{item.name}</span>
               <strong>{formatNumber(item.total)}</strong>
-              <small>{item.success ? `${formatNumber(item.success)} PTC` : `${formatNumber(item.multiAttempt)} láº§n 2+`}</small>
+              <small>{item.success ? `${formatNumber(item.success)} PTC` : `${formatNumber(item.multiAttempt)} lần 2+`}</small>
             </div>
           ))}
         </div>
 
         <div className="cskh-list">
-          <h3>ÄÆ¡n vá»‹ cáº§n nháº¯c nhiá»u</h3>
+          <h3>Đơn vị cần nhắc nhiều</h3>
           {data.byUnit.map((item) => (
             <div className="cskh-row" key={item.name}>
               <span>{item.name}</span>
               <strong>{formatNumber(item.multiAttempt)}</strong>
-              <small>{formatNumber(item.total)} yÃªu cáº§u</small>
+              <small>{formatNumber(item.total)} yêu cầu</small>
             </div>
           ))}
         </div>
 
         <div className="cskh-list">
-          <h3>NguyÃªn nhÃ¢n sau há»— trá»£</h3>
+          <h3>Nguyên nhân sau hỗ trợ</h3>
           {data.causes.map((item) => (
             <div className="cskh-row" key={item.name}>
               <span>{item.name}</span>
@@ -961,7 +961,7 @@ function App() {
           setSupportError('')
         }
       } catch (err) {
-        if (active) setSupportError(err instanceof Error ? err.message : 'KhÃ´ng táº£i Ä‘Æ°á»£c dá»¯ liá»‡u')
+        if (active) setSupportError(err instanceof Error ? err.message : 'Không tải được dữ liệu')
       } finally {
         if (active) setSupportLoading(false)
       }
@@ -988,11 +988,11 @@ function App() {
   function copySummary() {
     const text = [
       'SLA OPERATIONS DASHBOARD',
-      `Tá»•ng sáº£n lÆ°á»£ng: ${formatNumber(data.total)}`,
-      `Tá»‰ lá»‡ SLA J+3: ${formatPercent(data.slaRate)}`,
+      `Tổng sản lượng: ${formatNumber(data.total)}`,
+      `Tỉ lệ SLA J+3: ${formatPercent(data.slaRate)}`,
       `PTC + PHTC: ${formatNumber(data.ptc)}`,
-      `Lá»—i phÃ¡t: ${formatNumber(data.fail)}`,
-      `ChÆ°a TT: ${formatNumber(data.noInfo)}`,
+      `Lỗi phát: ${formatNumber(data.fail)}`,
+      `Chưa TT: ${formatNumber(data.noInfo)}`,
     ].join('\n')
     navigator.clipboard?.writeText(text)
   }
@@ -1089,17 +1089,17 @@ function App() {
           <div className="brand-mark" />
           <div>
             <h1>SLA OPERATIONS DASHBOARD</h1>
-            <p>PHáº M THá»Š NGá»ŒC HUáº¾ <span /> C020016132</p>
+            <p>PHẠM THỊ NGỌC HUẾ <span /> C020016132</p>
           </div>
         </div>
         <div className="actions">
-          <button className="date-pill" type="button">Má»‘c bÃ¡o cÃ¡o: {shortDate(data.latestDate)}/2026</button>
+          <button className="date-pill" type="button">Mốc báo cáo: {shortDate(data.latestDate)}/2026</button>
           <input ref={inputRef} className="file-input" type="file" accept=".xlsx,.xls" onChange={handleFile} />
           <button className="action upload" type="button" onClick={() => inputRef.current?.click()}>
-            <Upload size={15} /> Náº¡p Excel
+            <Upload size={15} /> Nạp Excel
           </button>
           <button className="action pdf" type="button" onClick={exportModulesToPdf} disabled={isExportingPdf}>
-            <FileDown size={15} /> {isExportingPdf ? 'Äang xuáº¥t PDF...' : 'Xuáº¥t PDF (Khá»• ngang)'}
+            <FileDown size={15} /> {isExportingPdf ? 'Đang xuất PDF...' : 'Xuất PDF (Khổ ngang)'}
           </button>
           <button className="action copy" type="button" onClick={copySummary}>
             <Clipboard size={15} /> Copy
@@ -1107,12 +1107,12 @@ function App() {
         </div>
       </header>
 
-      <section className="kpi-grid" aria-label="KPI tá»•ng quan" data-export-module="kpi_tong_quan">
-        <KpiCard label="Tá»”NG Sáº¢N LÆ¯á»¢NG" value={formatNumber(data.total)} accent="#64748b" sub={fileName} />
-        <KpiCard label="Tá»ˆ Lá»† SLA J+3" value={formatPercent(data.slaRate)} accent={COLORS.purple} />
-        <KpiCard label="PHÃT TC (PTC)" value={formatNumber(data.ptc)} accent={COLORS.success} />
-        <KpiCard label="Lá»–I PHÃT" value={formatNumber(data.fail)} accent={COLORS.fail} />
-        <KpiCard label="CHÆ¯A TT (KTC)" value={formatNumber(data.noInfo)} accent={COLORS.noInfo} />
+      <section className="kpi-grid" aria-label="KPI tổng quan" data-export-module="kpi_tong_quan">
+        <KpiCard label="TỔNG SẢN LƯỢNG" value={formatNumber(data.total)} accent="#64748b" sub={fileName} />
+        <KpiCard label="TỈ LỆ SLA J+3" value={formatPercent(data.slaRate)} accent={COLORS.purple} />
+        <KpiCard label="PHÁT TC (PTC)" value={formatNumber(data.ptc)} accent={COLORS.success} />
+        <KpiCard label="LỖI PHÁT" value={formatNumber(data.fail)} accent={COLORS.fail} />
+        <KpiCard label="CHƯA TT (KTC)" value={formatNumber(data.noInfo)} accent={COLORS.noInfo} />
       </section>
 
       <InsightPanel data={data} supportData={supportData} />
@@ -1126,9 +1126,9 @@ function App() {
           <div className="panel-head">
             <div className="panel-title">
               <FileSpreadsheet size={16} />
-              <h2>BIáº¾N Äá»˜NG Sáº¢N LÆ¯á»¢NG & HIá»†U SUáº¤T SLA J+3 CHI TIáº¾T</h2>
+              <h2>BIẾN ĐỘNG SẢN LƯỢNG & HIỆU SUẤT SLA J+3 CHI TIẾT</h2>
             </div>
-            <div className="tab-list" role="tablist" aria-label="Cháº¿ Ä‘á»™ xem báº£ng">
+            <div className="tab-list" role="tablist" aria-label="Chế độ xem bảng">
               <button
                 className={activeTab === 'overview' ? 'active' : ''}
                 type="button"
@@ -1136,7 +1136,7 @@ function App() {
                 aria-selected={activeTab === 'overview'}
                 onClick={() => setActiveTab('overview')}
               >
-                Tá»•ng quan
+                Tổng quan
               </button>
               <button
                 className={activeTab === 'quality' ? 'active' : ''}
@@ -1145,7 +1145,7 @@ function App() {
                 aria-selected={activeTab === 'quality'}
                 onClick={() => setActiveTab('quality')}
               >
-                Cháº¥t lÆ°á»£ng theo ngÃ y / hÆ°á»›ng
+                Chất lượng theo ngày / hướng
               </button>
             </div>
           </div>
@@ -1156,7 +1156,7 @@ function App() {
 
         <aside className="side-grid">
           <article className="panel chart-panel" data-export-module="hieu_suat_sla_theo_huong">
-            <h2>HIá»†U SUáº¤T SLA THEO HÆ¯á»šNG (%)</h2>
+            <h2>HIỆU SUẤT SLA THEO HƯỚNG (%)</h2>
             <ResponsiveContainer width="100%" height={238}>
               <BarChart data={data.directions} margin={{ top: 26, right: 14, left: 4, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke="#edf0f6" />
@@ -1169,7 +1169,7 @@ function App() {
           </article>
 
           <article className="panel chart-panel donut-card" data-export-module="cau_truc_trang_thai">
-            <h2>Cáº¤U TRÃšC TRáº NG THÃI (%)</h2>
+            <h2>CẤU TRÚC TRẠNG THÁI (%)</h2>
             <DonutChart items={data.status} total={data.total} />
             <div className="legend">
               {data.status.map((item) => (
@@ -1179,13 +1179,13 @@ function App() {
           </article>
 
           <article className="panel province-panel" data-export-module="top_5_tinh_qua_sla">
-            <h2>TOP 5 Tá»ˆNH QUÃ SLA (Sá» ÄÆ N Lá»–I THá»°C Táº¾)</h2>
+            <h2>TOP 5 TỈNH QUÁ SLA (SỐ ĐƠN LỖI THỰC TẾ)</h2>
             <ResponsiveContainer width="100%" height={286}>
               <BarChart data={data.topProvinces} layout="vertical" margin={{ top: 8, right: 42, left: 74, bottom: 4 }}>
                 <CartesianGrid horizontal={false} stroke="#edf0f6" />
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" width={88} tickLine={false} axisLine={false} tick={{ fontSize: 13, fill: '#707786', fontWeight: 800 }} />
-                <Tooltip formatter={(value) => `${value} Ä‘Æ¡n`} cursor={{ fill: 'transparent' }} />
+                <Tooltip formatter={(value) => `${value} đơn`} cursor={{ fill: 'transparent' }} />
                 <Bar isAnimationActive={false} dataKey="value" fill={COLORS.fail} radius={[0, 7, 7, 0]} barSize={28} label={{ position: 'right', fill: COLORS.fail, fontWeight: 900 }} />
               </BarChart>
             </ResponsiveContainer>

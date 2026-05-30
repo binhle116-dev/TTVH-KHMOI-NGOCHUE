@@ -68,3 +68,10 @@
   - Khoi tao state tu du lieu da luu thay vi tra ve `seedRows`.
 - Dieu chinh nut xuat file tai module `DANH GIA TON PHAT & CHUA CO THONG TIN PHAT`:
   - Doi label nut thanh `Bưu gửi chưa phát được`.
+
+## 2026-05-30 09:28 +07:00
+
+- Sửa encoding tiếng Việt trong `README.md` về UTF-8 chuẩn.
+- Sửa encoding tiếng Việt trong `src/App.jsx` về UTF-8 chuẩn.
+- Giữ nguyên link README dạng tương đối trong repo.
+- Đổi tên package từ `new-project-3` thành `ttvh-sla-cskh-dashboard`.
