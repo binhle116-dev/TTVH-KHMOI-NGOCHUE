@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "today": "2026-05-29",
+    "jm1": "2026-05-28"
+  },
+  "checkRow292": {
+    "stt": "292",
+    "supportDate": "2026-05-28",
+    "code": "EE371725902VN",
+    "requester": "Yến Vy",
+    "request": "KH đã nhận được BG check nhập TTP",
+    "reqDate": "2026-05-29",
+    "content": "YC nhập TTP",
+    "finalResult": "Đã phát thành công"
+  },
+  "report1": {
+    "total": 143,
+    "success": 0,
+    "successRate": 0,
+    "notDelivered": 143,
+    "notDeliveredRate": 100,
+    "causes": {
+      "notReturnedToPostman": 0,
+      "handedButFailed": 143
+    }
+  },
+  "report2": {
+    "jm1Pending": 53,
+    "jm1UpdatedSuccess": 0,
+    "jm1Remain": 53,
+    "noInfoTotal": 253,
+    "noInfoJm1": 0,
+    "noInfoOld": 253,
+    "processingTotal": 0,
+    "processingNew": 0,
+    "processingOld": 0
+  }
+}
