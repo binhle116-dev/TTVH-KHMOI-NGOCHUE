@@ -75,3 +75,12 @@
 - Sửa encoding tiếng Việt trong `src/App.jsx` về UTF-8 chuẩn.
 - Giữ nguyên link README dạng tương đối trong repo.
 - Đổi tên package từ `new-project-3` thành `ttvh-sla-cskh-dashboard`.
+
+## 2026-05-31 12:55 +07:00
+
+- Rà soát lại `src/App.jsx`: không còn chuỗi mojibake tiếng Việt.
+- Rà soát lại `README.md`: không còn link local Windows, giữ link tương đối.
+- Xác nhận `package.json` giữ `name = ttvh-sla-cskh-dashboard`.
+- Chạy kiểm tra:
+  - `npm run lint`: pass
+  - `npm run build`: pass
