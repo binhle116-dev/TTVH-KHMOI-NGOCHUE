@@ -1,5 +1,14 @@
 # Change Log Internal
 
+## 2026-05-31 16:20 +07:00
+
+- Them sidebar menu ben trai (`SLA`, `CSKH`) trong layout dashboard.
+- Tach hien thi module SLA va module CSKH theo menu chon.
+- Dieu chinh xuat PDF theo module dang chon:
+  - `SLA_dashboard_YYYY-MM-DD.pdf`
+  - `CSKH_dashboard_YYYY-MM-DD.pdf`
+- Giu nguyen logic nghiep vu hien co (SLA/PTC/PHTC/risk/CSKH/localStorage/Google Sheet/Excel).
+
 ## 2026-05-28 08:37 +07:00
 
 - Khoi tao Git repository tai workspace voi nhanh `main`.

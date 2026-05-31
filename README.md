@@ -127,3 +127,10 @@ Mục đích: refresh trang vẫn giữ số liệu đã nạp.
 - Mọi thay đổi nghiệp vụ cập nhật vào `CHANGELOG_INTERNAL.md`.
 - Ưu tiên workflow GitHub (commit rõ nội dung, push nhánh `main` hoặc theo nhánh tính năng).
 
+## 11) Sidebar menu (SLA / CSKH)
+- Dashboard da tach thanh 2 module rieng trong cung mot layout:
+  - `SLA`
+  - `CSKH`
+- Sidebar ben trai dung de chuyen module, khong dung React Router.
+- Khi chon `SLA`: hien thi KPI SLA, nhan xet van hanh, ton phat, bang chi tiet va bieu do SLA.
+- Khi chon `CSKH`: hien thi module danh gia cong tac CSKH/KHL.

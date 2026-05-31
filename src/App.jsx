@@ -15,22 +15,11 @@ import { jsPDF } from 'jspdf'
 import * as XLSX from 'xlsx'
 import seedRows from './data/seedRows.json'
 import laborShortage from './data/laborShortage.json'
+import { CSKH_CSV_URL, COLORS, FAIL, NO_INFO, RETURNED, STORAGE_FILENAME_KEY, STORAGE_ROWS_KEY, SUCCESS } from './config/statusConfig'
+import { parseWorkbookRows as parseWorkbookRowsModule } from './parsers/excelParser'
+import { parseCustomerSupportCsv as parseCustomerSupportCsvModule } from './parsers/cskhParser'
 import './App.css'
 
-const SUCCESS = 'Đã phát thành công'
-const FAIL = 'Chưa phát được'
-const NO_INFO = 'Chưa có TT phát'
-const RETURNED = 'Phát hoàn thành công'
-const CSKH_CSV_URL =
-  'https://docs.google.com/spreadsheets/d/11bry91Q4H0JJMiKB2rjBgJSA85bJ5l0MsnYEQ15cLms/gviz/tq?tqx=out:csv&gid=0'
-const COLORS = {
-  success: '#43bd83',
-  fail: '#eb3b68',
-  noInfo: '#f4a51c',
-  purple: '#554ce4',
-}
-const STORAGE_ROWS_KEY = 'sla_dashboard_rows_v1'
-const STORAGE_FILENAME_KEY = 'sla_dashboard_filename_v1'
 
 function loadPersistedRows() {
   try {
@@ -73,12 +62,6 @@ function dayDiff(start, end) {
   return Math.floor((endUtc - startUtc) / 86400000)
 }
 
-function dateKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate(),
-  ).padStart(2, '0')}`
-}
-
 function shortDate(key) {
   const [, month, day] = key.split('-')
   return `${day}/${month}`
@@ -118,10 +101,6 @@ function hasTextMatch(left, right) {
   return a === b || a.includes(b) || b.includes(a)
 }
 
-function matchesPost(sourcePost, postCode, postName) {
-  return hasTextMatch(sourcePost, postCode) || hasTextMatch(sourcePost, postName)
-}
-
 function matchesLaborShortage(row) {
   return laborShortage.some((item) => {
     const provinceMatched = hasTextMatch(item.province, row.province) || hasTextMatch(item.province, row.postCode)
@@ -150,87 +129,11 @@ function classifySupportOutcome(row, shipment) {
 }
 
 function parseWorkbookRows(workbook) {
-  const sheetName = workbook.SheetNames.find((name) => name.toLowerCase().includes('chi')) || workbook.SheetNames[0]
-  const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-    header: 1,
-    raw: true,
-    defval: '',
-  })
-  const sourceSheetName = workbook.SheetNames.find((name) => normalizeText(name) === 'nguon')
-  const sourceRows = sourceSheetName
-    ? XLSX.utils.sheet_to_json(workbook.Sheets[sourceSheetName], { header: 1, raw: true, defval: '' })
-        .map((row) => ({
-          finalStatus: String(row[24] || '').trim(),
-          post: String(row[25] || '').trim(),
-        }))
-        .filter((row) => row.post)
-    : []
-  const headerIndex = matrix.findIndex((row) => String(row[0]).trim() === 'Số hiệu BG')
-  if (headerIndex < 0) return []
-
-  return matrix
-    .slice(headerIndex + 1)
-    .map((row) => {
-      const parsedDate = parseDate(row[5])
-      if (!row[0] || !parsedDate) return null
-      const finalStatus = String(row[12] || row[9] || row[7] || '').trim()
-      return {
-        code: String(row[0]).trim(),
-        province: String(row[4] || '#N/A').trim() || '#N/A',
-        postCode: String(row[2] || '').trim(),
-        deliveryPost: String(row[3] || '').trim(),
-        date: dateKey(parsedDate),
-        direction: String(row[6] || '#N/A').trim() || '#N/A',
-        firstStatus: String(row[7] || '').trim(),
-        firstDeliveryDate: parseDate(row[8]) ? dateKey(parseDate(row[8])) : null,
-        lastPosition: String(row[11] || '').trim(),
-        reasonText: String(row[12] || '').trim(),
-        finalStatus,
-        sourceNoInfoAtPost: sourceRows.some(
-          (sourceRow) =>
-            normalizeText(sourceRow.finalStatus).includes('chua co thong tin phat') &&
-            matchesPost(sourceRow.post, row[2], row[3]),
-        ),
-        j3Days: Number.isFinite(Number(row[15])) ? Number(row[15]) : null,
-      }
-    })
-    .filter(Boolean)
+  return parseWorkbookRowsModule(workbook)
 }
 
 function parseCustomerSupportCsv(csvText) {
-  const workbook = XLSX.read(csvText, { type: 'string' })
-  const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {
-    header: 1,
-    raw: false,
-    defval: '',
-  })
-
-  return matrix
-    .slice(1)
-    .map((row) => {
-      const code = String(row[2] || '').trim()
-      if (!code || code === 'Mã BG hỗ trợ') return null
-      const request = String(row[4] || '').trim()
-      const finalResult = String(row[20] || row[19] || row[18] || row[17] || '').trim()
-      const cause = String(row[21] || '').trim()
-      const attempt2 = [row[13], row[14], row[18]].some((value) => String(value || '').trim())
-      const attempt3 = [row[15], row[16], row[19]].some((value) => String(value || '').trim())
-
-      return {
-        supportDate: String(row[1] || '').trim(),
-        code,
-        requester: String(row[3] || '').trim(),
-        request,
-        requestedDeliveryDate: String(row[5] || '').trim(),
-        staff: String(row[6] || 'Chưa rõ').trim() || 'Chưa rõ',
-        unit: String(row[7] || 'Chưa rõ').trim() || 'Chưa rõ',
-        content: String(row[8] || '').trim(),
-        finalResult,
-        cause,
-        attempts: attempt3 ? 3 : attempt2 ? 2 : 1,
-      }
-    })
-    .filter(Boolean)
+  return parseCustomerSupportCsvModule(csvText)
 }
 
 function buildCustomerSupportDashboard(supportRows, shipmentRows) {
@@ -507,6 +410,35 @@ function buildDashboard(rows) {
     'Vị trí cuối cùng': row.lastPosition || '',
     'Nguyên nhân': matchesLaborShortage(row) ? 'BCVH thiếu lao động phát' : 'Lý do khác',
   }))
+  const riskDetails = rows
+    .map((row) => {
+      const acceptedDate = parseDate(row.date)
+      const isNoInfo = row.finalStatus === NO_INFO
+      const hasAppointment = /hẹn|hen|phát lại|phat lai|chờ phát|cho phat/.test(
+        `${row.reasonText || ''} ${row.firstStatus || ''} ${row.finalStatus || ''}`.toLowerCase(),
+      )
+      const isMissedAppointment = hasAppointment && row.finalStatus !== SUCCESS && row.finalStatus !== RETURNED
+      const isOverJ3AtPost =
+        Boolean(acceptedDate) && row.sourceNoInfoAtPost && dayDiff(acceptedDate, today) > 3 && hasNoDeliverySignal(row)
+      if (!isNoInfo && !isMissedAppointment && !isOverJ3AtPost) return null
+      return {
+        code: row.code,
+        date: row.date,
+        province: row.province,
+        deliveryPost: row.deliveryPost,
+        direction: row.direction,
+        finalStatus: row.finalStatus,
+        riskTags: [
+          isOverJ3AtPost ? 'Tồn BC phát quá J+3' : '',
+          isMissedAppointment ? 'Hẹn giao chưa đi đúng ngày' : '',
+          isNoInfo ? 'Chưa có thông tin phát' : '',
+        ]
+          .filter(Boolean)
+          .join(' | '),
+        cause: matchesLaborShortage(row) ? 'BCVH thiếu lao động phát' : 'Lý do khác',
+      }
+    })
+    .filter(Boolean)
 
   return {
     ...totals,
@@ -528,6 +460,7 @@ function buildDashboard(rows) {
     riskMetrics,
     noInfoCauses,
     noInfoExportRows,
+    riskDetails,
     latestDate: sortedDates.at(-2) || sortedDates.at(-1) || '2026-05-16',
   }
 }
@@ -707,7 +640,7 @@ function QualityTable({ rows }) {
   )
 }
 
-function RiskIndicatorsPanel({ metrics, causes, exportRows }) {
+function RiskIndicatorsPanel({ metrics, causes, exportRows, riskDetails }) {
   function exportNoInfoRows() {
     const worksheet = XLSX.utils.json_to_sheet(exportRows)
     const workbook = XLSX.utils.book_new()
@@ -772,6 +705,44 @@ function RiskIndicatorsPanel({ metrics, causes, exportRows }) {
         Nguyên nhân "BCVH thiếu lao động phát" được xác định bằng danh sách thiếu bưu tá (cột B/D) so với Chi tiết!C/D;
         phần còn lại ghi nhận là lý do khác.
       </p>
+      <div className="risk-detail-table-wrap">
+        <h3>Danh sách chi tiết rủi ro</h3>
+        <div className="table-scroll">
+          <table className="dashboard-table risk-detail-table">
+            <thead>
+              <tr>
+                <th>MA BG</th>
+                <th>NGÀY CHẤP NHẬN</th>
+                <th>TỈNH PHÁT</th>
+                <th>BC PHÁT</th>
+                <th>HƯỚNG</th>
+                <th>TRẠNG THÁI CUỐI</th>
+                <th>NHÓM RỦI RO</th>
+                <th>NGUYÊN NHÂN</th>
+              </tr>
+            </thead>
+            <tbody>
+              {riskDetails.map((item) => (
+                <tr key={`${item.code}-${item.riskTags}`}>
+                  <td>{item.code}</td>
+                  <td>{item.date}</td>
+                  <td>{item.province}</td>
+                  <td>{item.deliveryPost || ''}</td>
+                  <td>{item.direction || ''}</td>
+                  <td>{item.finalStatus || ''}</td>
+                  <td>{item.riskTags}</td>
+                  <td>{item.cause}</td>
+                </tr>
+              ))}
+              {!riskDetails.length ? (
+                <tr>
+                  <td colSpan={8}>Không có dữ liệu rủi ro theo bộ lọc hiện tại.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </article>
   )
 }
@@ -919,17 +890,78 @@ function CustomerSupportPanel({ data, loading, error }) {
   )
 }
 
+function Sidebar({ activeModule, onChangeModule }) {
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-brand">
+        <h2>SLA Dashboard</h2>
+        <p>TTVH Huế</p>
+      </div>
+      <nav className="sidebar-menu" aria-label="Menu module">
+        <button
+          type="button"
+          className={`sidebar-item ${activeModule === 'sla' ? 'active' : ''}`}
+          onClick={() => onChangeModule('sla')}
+        >
+          SLA
+        </button>
+        <button
+          type="button"
+          className={`sidebar-item ${activeModule === 'cskh' ? 'active' : ''}`}
+          onClick={() => onChangeModule('cskh')}
+        >
+          CSKH
+        </button>
+      </nav>
+    </aside>
+  )
+}
+
+function CskhModule({ supportData, supportLoading, supportError }) {
+  return <CustomerSupportPanel data={supportData} loading={supportLoading} error={supportError} />
+}
+
 function App() {
+  const [activeModule, setActiveModule] = useState('sla')
   const [rows, setRows] = useState(loadPersistedRows)
   const [supportRows, setSupportRows] = useState([])
   const [supportLoading, setSupportLoading] = useState(true)
   const [supportError, setSupportError] = useState('')
+  const [uploadError, setUploadError] = useState('')
   const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
   const [fileName, setFileName] = useState(loadPersistedFileName)
+  const [reportCutoffDate, setReportCutoffDate] = useState('')
+  const [filterDirection, setFilterDirection] = useState('ALL')
+  const [filterProvince, setFilterProvince] = useState('ALL')
+  const [filterStatus, setFilterStatus] = useState('ALL')
   const inputRef = useRef(null)
-  const data = useMemo(() => buildDashboard(rows), [rows])
-  const supportData = useMemo(() => buildCustomerSupportDashboard(supportRows, rows), [supportRows, rows])
+  const latestRowDate = useMemo(() => {
+    const dates = [...new Set(rows.map((row) => row.date).filter(Boolean))].sort()
+    return dates.at(-1) || ''
+  }, [rows])
+  const effectiveCutoffDate = reportCutoffDate || latestRowDate
+  const filteredRows = useMemo(
+    () =>
+      rows.filter((row) => {
+        if (effectiveCutoffDate && row.date > effectiveCutoffDate) return false
+        if (filterDirection !== 'ALL' && row.direction !== filterDirection) return false
+        if (filterProvince !== 'ALL' && normalizeProvince(row.province) !== filterProvince) return false
+        if (filterStatus !== 'ALL' && row.finalStatus !== filterStatus) return false
+        return true
+      }),
+    [rows, effectiveCutoffDate, filterDirection, filterProvince, filterStatus],
+  )
+  const data = useMemo(() => buildDashboard(filteredRows), [filteredRows])
+  const supportData = useMemo(() => buildCustomerSupportDashboard(supportRows, filteredRows), [supportRows, filteredRows])
+  const filterOptions = useMemo(() => {
+    const directions = [...new Set(rows.map((row) => row.direction).filter(Boolean))]
+    const provinces = [...new Set(rows.map((row) => normalizeProvince(row.province)).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b),
+    )
+    const statuses = [...new Set(rows.map((row) => row.finalStatus).filter(Boolean))]
+    return { directions, provinces, statuses }
+  }, [rows])
 
   useEffect(() => {
     try {
@@ -975,14 +1007,42 @@ function App() {
   async function handleFile(event) {
     const file = event.target.files?.[0]
     if (!file) return
-    const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
-    const parsedRows = parseWorkbookRows(workbook)
-    if (parsedRows.length) {
+    setUploadError('')
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
+      const parsedRows = parseWorkbookRows(workbook)
+      if (!parsedRows.length) throw new Error('Không đọc được dữ liệu từ file Excel.')
+      const invalidRows = parsedRows.filter((row) => !row.code || !row.date || !row.direction || !row.finalStatus)
+      if (invalidRows.length) throw new Error(`Dữ liệu không hợp lệ: ${invalidRows.length} dòng thiếu thông tin bắt buộc.`)
       setRows(parsedRows)
       setFileName(file.name)
+      const newestDate = [...new Set(parsedRows.map((row) => row.date).filter(Boolean))].sort().at(-1) || ''
+      if (newestDate) setReportCutoffDate(newestDate)
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Không thể nạp file Excel.')
     }
     event.target.value = ''
+  }
+
+  function exportExcelMultiSheet() {
+    const workbook = XLSX.utils.book_new()
+    const summaryRows = [
+      { 'Chi so': 'Tong san luong', 'Gia tri': data.total },
+      { 'Chi so': 'Ty le SLA J+3 (%)', 'Gia tri': Number(data.slaRate.toFixed(2)) },
+      { 'Chi so': 'PTC', 'Gia tri': data.ptc },
+      { 'Chi so': 'Loi phat', 'Gia tri': data.fail },
+      { 'Chi so': 'Chua co TT phat', 'Gia tri': data.noInfo },
+      { 'Chi so': 'Ngay chot bao cao', 'Gia tri': effectiveCutoffDate || '' },
+    ]
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), 'Tong quan')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data.daily), 'Bien dong ngay')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data.qualityRows), 'Chat luong huong')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data.riskMetrics), 'Chi so rui ro')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data.riskDetails), 'DS rui ro chi tiet')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data.noInfoExportRows), 'BG chua co TTP')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(supportData.daily), 'CSKH theo ngay')
+    XLSX.writeFile(workbook, `sla_dashboard_${effectiveCutoffDate || 'report'}.xlsx`)
   }
 
   function copySummary() {
@@ -999,7 +1059,8 @@ function App() {
 
   async function exportModulesToPdf() {
     if (isExportingPdf) return
-    const modules = Array.from(document.querySelectorAll('[data-export-module]'))
+    const moduleRoots = Array.from(document.querySelectorAll(`[data-module-root="${activeModule}"]`))
+    const modules = moduleRoots.flatMap((root) => Array.from(root.querySelectorAll('[data-export-module]')))
     if (!modules.length) return
 
     setIsExportingPdf(true)
@@ -1018,10 +1079,12 @@ function App() {
         compress: true,
       })
 
-      const groupedIndexes = [[0, 1, 2], [3], [4], [5, 6, 7]]
-      const groups = groupedIndexes
-        .map((indexes) => indexes.map((index) => modules[index]).filter(Boolean))
-        .filter((group) => group.length)
+      const groups =
+        activeModule === 'sla'
+          ? [[0, 1, 2], [3], [4], [5, 6, 7]]
+              .map((indexes) => indexes.map((index) => modules[index]).filter(Boolean))
+              .filter((group) => group.length)
+          : modules.map((moduleItem) => [moduleItem])
 
       const createGroupCanvas = async (group) => {
         if (group.length === 1) {
@@ -1076,14 +1139,16 @@ function App() {
         pdf.addImage(canvas.toDataURL('image/jpeg', 0.96), 'JPEG', x, y, renderWidth, renderHeight, undefined, 'FAST')
       }
 
-      pdf.save(`SLA_dashboard_grouped_${dateToken}.pdf`)
+      pdf.save(`${activeModule.toUpperCase()}_dashboard_${dateToken}.pdf`)
     } finally {
       setIsExportingPdf(false)
     }
   }
 
   return (
-    <main className="dashboard-shell">
+    <main className="dashboard-layout">
+      <Sidebar activeModule={activeModule} onChangeModule={setActiveModule} />
+      <div className="main-content dashboard-shell">
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark" />
@@ -1093,10 +1158,16 @@ function App() {
           </div>
         </div>
         <div className="actions">
-          <button className="date-pill" type="button">Mốc báo cáo: {shortDate(data.latestDate)}/2026</button>
+          <label className="date-pill cutoff-pill">
+            Ngày chốt:
+            <input type="date" value={reportCutoffDate} max={latestRowDate || undefined} onChange={(event) => setReportCutoffDate(event.target.value)} />
+          </label>
           <input ref={inputRef} className="file-input" type="file" accept=".xlsx,.xls" onChange={handleFile} />
           <button className="action upload" type="button" onClick={() => inputRef.current?.click()}>
             <Upload size={15} /> Nạp Excel
+          </button>
+          <button className="action upload" type="button" onClick={exportExcelMultiSheet}>
+            <FileSpreadsheet size={15} /> Xuất Excel
           </button>
           <button className="action pdf" type="button" onClick={exportModulesToPdf} disabled={isExportingPdf}>
             <FileDown size={15} /> {isExportingPdf ? 'Đang xuất PDF...' : 'Xuất PDF (Khổ ngang)'}
@@ -1106,7 +1177,44 @@ function App() {
           </button>
         </div>
       </header>
+      {uploadError ? <p className="upload-error">{uploadError}</p> : null}
+      <section className="filter-bar">
+        <label>
+          Hướng
+          <select value={filterDirection} onChange={(event) => setFilterDirection(event.target.value)}>
+            <option value="ALL">Tất cả</option>
+            {filterOptions.directions.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Tỉnh phát
+          <select value={filterProvince} onChange={(event) => setFilterProvince(event.target.value)}>
+            <option value="ALL">Tất cả</option>
+            {filterOptions.provinces.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Trạng thái cuối
+          <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>
+            <option value="ALL">Tất cả</option>
+            {filterOptions.statuses.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
 
+      <section data-module-root="sla" style={{ display: activeModule === 'sla' ? 'block' : 'none' }}>
       <section className="kpi-grid" aria-label="KPI tổng quan" data-export-module="kpi_tong_quan">
         <KpiCard label="TỔNG SẢN LƯỢNG" value={formatNumber(data.total)} accent="#64748b" sub={fileName} />
         <KpiCard label="TỈ LỆ SLA J+3" value={formatPercent(data.slaRate)} accent={COLORS.purple} />
@@ -1117,11 +1225,14 @@ function App() {
 
       <InsightPanel data={data} supportData={supportData} />
 
-      <RiskIndicatorsPanel metrics={data.riskMetrics} causes={data.noInfoCauses} exportRows={data.noInfoExportRows} />
+      <RiskIndicatorsPanel
+        metrics={data.riskMetrics}
+        causes={data.noInfoCauses}
+        exportRows={data.noInfoExportRows}
+        riskDetails={data.riskDetails}
+      />
 
-      <CustomerSupportPanel data={supportData} loading={supportLoading} error={supportError} />
-
-      <section className="content-grid">
+      <section className="content-grid" data-module-root="sla" style={{ display: activeModule === 'sla' ? 'grid' : 'none' }}>
         <article className="panel table-panel" data-export-module="bien_dong_sla_chi_tiet">
           <div className="panel-head">
             <div className="panel-title">
@@ -1193,6 +1304,11 @@ function App() {
 
         </aside>
       </section>
+      </section>
+      <section data-module-root="cskh" style={{ display: activeModule === 'cskh' ? 'block' : 'none' }}>
+        <CskhModule supportData={supportData} supportLoading={supportLoading} supportError={supportError} />
+      </section>
+      </div>
     </main>
   )
 }
